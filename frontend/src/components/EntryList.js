@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import axios from 'axios';
+import {toast} from 'react-toastify';
 import { useNavigate } from 'react-router-dom';
 import { 
     Table,
@@ -18,6 +19,7 @@ import {
 import { fetchEntities } from '../api';
 import DeleteIcon from '@mui/icons-material/Delete';
 import EditIcon from '@mui/icons-material/Edit';
+import ArrowBack from '@mui/icons-material/ArrowBack';
 
 const EntryList = () => {
     const navigate = useNavigate();
@@ -37,13 +39,15 @@ const EntryList = () => {
                 setEntries(response.data);
                 const data = await fetchEntities();
                 setEntities(data);
-
                 console.log('Entities fetched successfully:', data); // Log success
+                toast.success('Entities fetched successfully');
             
                 const schemaResponse = await axios.get(`http://localhost:3000/entities/${entityName}`);
                 setEntitySchema(schemaResponse.data);
             } catch (error) {
                 console.error('Error fetching entries:', error);
+                setError(error);
+                toast.error('Error fetching entries');
             }
         };
 
@@ -52,15 +56,18 @@ const EntryList = () => {
         }
     }, [entityName]);
     const handleShowAddEntry = (entityName) => {
+        console.log('Adding entry for entity:', entityName);
         navigate(`/entities/${entityName}`); // Navigate to the add entry route
     };
     const handleDeleteConfirm = async (entryToDeleteId) => {
         try {
-        console.log(entityName, entryToDeleteId)
-          await axios.delete(`http://localhost:3000/entities/${entityName}/entries/${entryToDeleteId}`);
-          setEntries(entries.filter(entry => entry.id !== entryToDeleteId));
+            console.log(entityName, entryToDeleteId)
+            toast.success('Entry deleted successfully');
+            await axios.delete(`http://localhost:3000/entities/${entityName}/entries/${entryToDeleteId}`);
+            setEntries(entries.filter(entry => entry.id !== entryToDeleteId));
         } catch (error) {
-          console.error('Error deleting entry:', error);
+            toast.error('Error deleting entry');
+            console.error('Error deleting entry:', error);
           // Consider showing an error snackbar here
         }
         setDeleteDialogOpen(false);
@@ -74,10 +81,9 @@ const EntryList = () => {
     };
     
       
-    
-      const handleEditEntry = (entryId) => {
-        navigate(`/entities/${entityName}/entries/${entryId}`); // Assuming you have an edit entry route
-      };
+    const handleEditEntry = (entryId) => {
+        navigate(`/entities/${entityName}/entries/${entryId}/edit`);
+    };
     
     if (!entitySchema) {
         return <Typography variant="h6">Loading...</Typography>;
@@ -85,11 +91,13 @@ const EntryList = () => {
 
     return (
         <Box mt={2}>
+        <Button onClick={() => navigate(-1)} variant="outlined" sx={{ mb: 2, mt: 2}}>
+                <ArrowBack /> Back
+            </Button>
+        <Typography variant="h6" sx={{ mt:2, mb:2   }}>{entityName}</Typography>
         <TableContainer component={Paper}>
             <Table>
                 <TableHead>
-                    <Typography variant="h6" sx={{ml: 2, mt:2   }}>{entityName}</Typography>
-                    <hr/>
                     <TableRow>
                         {Object.keys(entitySchema.attributes).map(attrName => (
                             <TableCell key={attrName}>{attrName}</TableCell>
@@ -100,6 +108,7 @@ const EntryList = () => {
                     {entries.map(entry => (
                         <TableRow key={entry.id}>
                             {Object.entries(entry.attributes).map(([attrName, value]) => (
+                                console.log(entry.id, entry.attributes, attrName, value),
                                 <TableCell key={attrName}>{value}</TableCell>
                             ))}
                             <TableCell>

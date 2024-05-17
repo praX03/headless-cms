@@ -38,7 +38,7 @@ router.post('/', async (req, res) => {
     }
 });
 
-// Inside your routes/entities.js file 
+
 router.get('/:entityName', async (req, res) => {
     const entityName = req.params.entityName;
 
@@ -76,10 +76,10 @@ router.get('/:entityName/entries', async (req, res) => {
 router.get('/:entityName/entries/:entryId', async (req, res) => {
     const entityName = req.params.entityName;
     const entryId = req.params.entryId;
-
+    
     try {
-        const entry = await DataEntry.findOne({
-            where: { id: entryId, entityName: entityName }
+        const entry = await Data.findOne({
+            where: { id: entryId, entity_name: entityName }
         });
 
         if (!entry) {
@@ -138,16 +138,19 @@ router.post('/:entityName', async (req, res) => {
         //     }
         // }
 
-        // 3. Insert into 'data' table 
-        const result = await sequelize.query(
-            `INSERT INTO data (entity_name, attributes) VALUES (?, ?)`,
-           {replacements: [entityName, JSON.stringify(data)]}
-        );
-
-        res.status(201).json({ message: 'Data added', insertId: result[0] });
+        const newData = await Data.create({
+            entity_name: entityName,
+            attributes: data,
+        });
+        
+        res.status(201).json({ message: 'Data added', entry: newData }); 
     } catch (error) {
-        console.error(error);
-        res.status(500).json({ message: 'Something went wrong' });
+        console.error("Error adding data:", error);
+    if (error.name === 'SequelizeUniqueConstraintError') { // Check for duplicate key error
+        res.status(400).json({ error: 'Entry with this ID already exists' });
+    } else {
+        res.status(500).json({ error: 'Server error adding data' });
+    }
     }
 });
 
@@ -162,26 +165,6 @@ router.put('/:entityName', async (req, res) => {
         if (!entity) {
             return res.status(404).json({ message: 'Entity not found' });
         }
-
-        // // 2. Basic Attribute Validation 
-        // const entityAttributes = entity.attributes; 
-        // console.log("entityattr", entityAttributes)
-        // for (const attributeName in data) {
-        //     if (!(attributeName in entityAttributes)) {
-        //         return res.status(400).json({ message: `Invalid attribute: ${attributeName}` });
-        //     }
-        //     else {
-        //         const attributeType = entityAttributes[attributeName];
-        //         const attributeValue = data[attributeName]; 
-
-        //         if (!isValidType(attributeValue, attributeType)) {
-        //             return res.status(400).json({
-        //                 message: `Invalid type for ${attributeName}. Expected: ${attributeType}`
-        //             });
-        //         }
-        //     }
-        // }
-
         // 3. Update the data entry
         const [numberOfAffectedRows, affectedRows] = await sequelize.query(
             `UPDATE data SET attributes = ? WHERE entity_name = ? AND id = ?`,
@@ -225,29 +208,21 @@ router.delete('/:entity_name', async (req, res) => {
         res.status(500).json({ error: 'Server error' });
     }
 });
-router.put('/:entity_name/entries/:id', async (req, res) => {
+router.put('/:entity_name/entries/:entryId', async (req, res) => {
     const entity_name = req.params.entity_name;
-    const id = req.params.id;
+    const entryId = req.params.entryId;
     const updateData = req.body;
-
+    console.log(entity_name,entryId, updateData)
     try {
         // 1. Fetch entity definition (for validation)
-        const entry = await Data.findOne({ where: { name: entity_name, id: id } });
+        const entry = await Data.findOne({ where: { entity_name: entity_name, id: entryId } });
         if (!entry) {
             return res.status(404).json({ message: 'Entry not found' });
         }
-
+        console.log(updateData)
         // 3. Update the data entry
-        const [numberOfAffectedRows, affectedRows] = await sequelize.query(
-            `UPDATE data SET attributes = ? WHERE entity_name = ? AND id = ?`,
-            { replacements: [JSON.stringify(updateData), entity_name, id] }
-        );
-
-        if (numberOfAffectedRows === 0) {
-            return res.status(404).json({ message: 'Data entry not found' });
-        }
-
-        res.status(200).json(affectedRows[0]); // Send the updated row data back
+        await entry.update({ attributes: updateData });
+        res.status(200).json({ message: 'Entry updated successfully', entry });
     } catch (error) {
         console.error(error);
         res.status(500).json({ message: 'Something went wrong' });

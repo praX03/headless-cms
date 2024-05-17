@@ -3,10 +3,10 @@ import { fetchEntities } from '../api';
 import { useNavigate } from 'react-router-dom';
 import EntityForm from './EntityForm';
 import axios from 'axios';
-import { Link } from 'react-router-dom';
 import {
     List, Divider,  ListItem, Dialog, DialogActions, DialogTitle, DialogContent, DialogContentText, ListItemText, Button, Typography, Container, Box
 } from '@mui/material';
+import {toast } from 'react-toastify';
 import IconButton from '@mui/material/IconButton';
 import DeleteIcon from '@mui/icons-material/Delete';
 import EditIcon from '@mui/icons-material/Edit';
@@ -19,23 +19,20 @@ const EntityList = () => {
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState(null);
     const [showForm, setShowForm] = useState(false);
-    const [editingEntity, setEditingEntity] = useState(null); // State to track the entity being edited
     const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
     const [entityToDelete, setEntityToDelete] = useState(null);
     const [showEntries, setShowEntries] = useState({}); 
 
-    const toggleForm = () => {
-        setShowForm(!showForm); // Toggle form visibility state
-    };
     useEffect(() => {
         const fetchData = async () => {
             setIsLoading(true);
             try {
                 const data = await fetchEntities();
                 setEntities(data);
-
+                toast.success('Entities fetched successfully');
                 console.log('Entities fetched successfully:', data); // Log success
             } catch (error) {
+                toast.error('Error fetching entities');
                 setError(error);
                 console.error('Error fetching entities:', error); // Detailed error 
             } finally {
@@ -48,73 +45,67 @@ const EntityList = () => {
         return <div>Loading entities...</div>;
     }
     if (error) {
-        return <div>Internal Server Error</div>;
+        toast.error('Error fetching entities, ', error.message);
     }
-
-    
-
     const handleShowEntriesClick = (entityName) => {
         navigate(`/entities/${entityName}/entries`);
     };
     const handleEditClick = (entity) => {
-        setEditingEntity(entity);
-        setShowForm(true);
+        navigate(`/entities/${entity.name}/edit`);
     };
-
     const handleDeleteClick = (entity) => {
         setEntityToDelete(entity);
         setDeleteDialogOpen(true);
     };
-
     const handleDeleteConfirm = async () => {
+        console.log('Deleting entity:', entityToDelete);
         try {
-            await axios.delete(`http://localhost:3000/entities/${entityToDelete}`);
-            setEntities(entities.filter(e => e.name !== entityToDelete));
+            await axios.delete(`http://localhost:3000/entities/${entityToDelete.name}`);
+            setEntities(entities.filter(e => e.name !== entityToDelete.name));
             console.log(entities)
+            toast.success('Entity deleted successfully');
         } catch (error) {
             console.error('Error deleting entity:', error);
+            toast.error('Error deleting entity');
             // Consider showing an error message to the user
         } finally {
             setDeleteDialogOpen(false);
             setEntityToDelete(null);
         }
     };
+
     const handleEntitySubmit = async (formData) => {
         try {
-            const method = editingEntity ? 'PUT' : 'POST'; // if you're editing use put else post.
-            const url = editingEntity ? `http://localhost:3000/entities/${editingEntity.id}` : 'http://localhost:3000/entities';
-            const response = await axios({
-                method: method,
-                url: url,
-                data: formData,
-                headers: { 'Content-Type': 'application/json' }
-            });
+            const method = 'POST'; // Use PUT for editing
+            const url = 'http://localhost:3000/entities';
+            
+            const response = await axios({ method, url, data: formData });
 
-            if (response.status === 200 || response.status === 201) {
-                // Success: update UI if needed
-                setEntities(prevEntities => {
-                    if (editingEntity) {
-                        return prevEntities.map(entity => entity.id === response.data.id ? response.data : entity);
-                    } else {
-                        return [...prevEntities, response.data];
-                    }
-                });
-                setShowForm(false);
-                setEditingEntity(null)
-            } else {
-                console.error('Error submitting entity:', response);
-            }
+        if (response.status === 200 || response.status === 201) {
+            toast.success('Entity saved successfully');
+            // Success: update UI if needed
+            setEntities(prevEntities => {
+
+                    return [...prevEntities, response.data];
+
+            });
+            setShowForm(false);
+        } else {
+            console.error('Error submitting entity:', response);
+            toast.error('Error submitting entity');
+        }
         } catch (error) {
             console.error('Error:', error);
+            toast.error('Error submitting entity');
         }
     };
     return (
-        <Container maxWidth="md">
+        <Container maxWidth="md" sx={{mt: 2}}>
             <Typography variant="h4" component="h1" gutterBottom>
                 Entity List
             </Typography>
             <Box mr={1} mb={2}>
-            <Button onClick={() => {setShowForm(true); setEditingEntity(null);}} variant="outlined">
+            <Button onClick={() => {setShowForm(true);}} variant="outlined">
                 Add New Entity
             </Button>
             </Box>
@@ -126,8 +117,7 @@ const EntityList = () => {
                 </Button>
 
                 <EntityForm 
-                    mode={editingEntity ? 'edit' : 'add'} 
-                    entityToEdit={editingEntity} 
+                    mode={'add'} 
                     onSubmit={handleEntitySubmit} 
                 />
             </>
@@ -151,10 +141,10 @@ const EntityList = () => {
                                 </Button>
 
                                 {/* Buttons for edit and delete */}
-                                <IconButton edge="end" aria-label="edit" onClick={() => handleEditClick(entity.name)}>
+                                {/* <IconButton edge="end" aria-label="edit" onClick={() => handleEditClick(entity)}>
                                     <EditIcon />
-                                </IconButton>
-                                <IconButton edge="end" aria-label="delete" onClick={() => handleDeleteClick(entity.name)}>
+                                </IconButton> */}
+                                <IconButton edge="end" aria-label="delete" onClick={() => handleDeleteClick(entity)}>
                                     <DeleteIcon />
                                 </IconButton>
                             </ListItem>

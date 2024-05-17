@@ -1,12 +1,14 @@
 import React, { useState, createContext, useMemo }  from 'react';
 import { BrowserRouter, Routes, Route, NavLink } from 'react-router-dom';
 import EntityList from './components/EntityList';
-import DataEntryForm from './components/DataEntryForm'; // Assuming the path is correct
+import DataEntryForm from './components/DataEntryForm';
 import EntryList from './components/EntryList';
+import EntryEditForm from './components/EntryEditForm';
+import EntityEditForm from './components/EntityEditForm';
 import EntityForm from './components/EntityForm';
 import { ThemeProvider, createTheme } from '@mui/material/styles';
 import CssBaseline from '@mui/material/CssBaseline';
-import { Container, Typography, AppBar, Toolbar, Link, Switch,
+import { Container, Typography, AppBar, Toolbar, Switch,
   FormControlLabel,
   FormGroup } from '@mui/material';
 
@@ -40,7 +42,7 @@ const App = () => {
                                 main: '#eebbc3', // Green
                             },
                             background: {
-                                default: '#ffffff',
+                                default: '#faeee7',
                                 paper: '#f5f5f5',
                             },
                             button: {
@@ -50,14 +52,14 @@ const App = () => {
                       : {
                             // Dark mode palette
                             primary: {
-                                main: '#b8c1ec', // Red
+                                main: '#ff8906', // Red
                             },
                             secondary: {
-                                main: '#121629', // Lime Green
+                                main: '#fffffe', // Lime Green
                             },
                             background: {
-                                default: '#232946',
-                                paper: '#232948',
+                                default: '#0f0e17',
+                                paper: '#ff8906',
                             },
                             button: {
                               main: '#eebbc3', // Button color in dark mode
@@ -97,8 +99,10 @@ const App = () => {
             <Routes>
                 <Route path="/" element={<EntityList />} />
                 <Route path="/entities/:entityName" element={<DataEntryForm />} />
+                <Route path='/entities/:entityName/edit' element={<EntityEditForm />} />
                 <Route path="/entities/add" element={<EntityForm />} />
-                <Route path="/entities/:entityName/entries" element={<EntryList />} /> 
+                <Route path="/entities/:entityName/entries" element={<EntryList />} />
+                <Route path="/entities/:entityName/entries/:entryId/edit" element={<EntryEditForm />} /> 
             </Routes>
             </Container>
         </BrowserRouter>

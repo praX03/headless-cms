@@ -17,9 +17,10 @@ import {
     Paper,
     Alert,
 } from '@mui/material';
+import ArrowBack from '@mui/icons-material/ArrowBack';
 const DataEntryForm = () => {
-  const { register, handleSubmit, formState: { errors } } = useForm();
   const navigate = useNavigate();
+  const { register, handleSubmit, formState: { errors }, reset } = useForm();
   const { entityName } = useParams();
   const [existingEntries, setExistingEntries] = useState([]);
   const [entitySchema, setEntitySchema] = useState(null);
@@ -27,15 +28,20 @@ const DataEntryForm = () => {
   const [successAlertOpen, setSuccessAlertOpen] = useState(false);
 
   useEffect(() => {
-    const fetchSchema = async () => {
+    const fetchSchemaAndEntries = async () => { // Combined the fetches
       try {
-        const response = await fetch(`http://localhost:3000/entities/${entityName}`);
-        const data = await response.json();
-        setEntitySchema(data);
 
-        const entriesResponse = await fetch(`http://localhost:3000/entities/${entityName}/entries`);
-        const entriesData = await entriesResponse.json();
-        console.log("Entries", entriesData)
+        const [schemaResponse, entriesResponse] = await Promise.all([
+          fetch(`http://localhost:3000/entities/${entityName}`),
+          fetch(`http://localhost:3000/entities/${entityName}/entries`),
+        ]);
+
+        const [schemaData, entriesData] = await Promise.all([
+          schemaResponse.json(),
+          entriesResponse.json(),
+        ]);
+        // console.log("Entries", entriesData)
+        setEntitySchema(schemaData);
         setExistingEntries(entriesData);
       } catch (error) {
         console.error("Error fetching data:", error);
@@ -44,12 +50,16 @@ const DataEntryForm = () => {
     };
 
     if (entityName) {
-      fetchSchema();
+      fetchSchemaAndEntries(); // Call the combined function
     }
   }, [entityName]);
-  if (!entitySchema || existingEntries.length === 0) {
-    return null; 
-}
+
+  if (!entitySchema) {
+    return <div>Loading schema...</div>;
+  }
+//   if (!entitySchema || existingEntries.length === 0) {
+//     return null; 
+// }
   const onSubmit = async (data) => {
     try {
       const url = `http://localhost:3000/entities/${entityName}`
@@ -60,19 +70,24 @@ const DataEntryForm = () => {
       });
       data = response.json();
     //   setExistingEntries([...existingEntries, data])
-    if (response.ok) {
-        setSuccessAlertOpen(true); // Show the success alert
-        setExistingEntries([...existingEntries, data]);
+    if (response.ok) { // Check if the request was successful
+      setSuccessAlertOpen(true);
+      const updatedEntries = await fetch(`http://localhost:3000/entities/${entityName}/entries`).then(res=>res.json());
+      setExistingEntries(updatedEntries);
+      reset(); // Clear the form after successful submission
     } else {
-        const errorData = await response.json();
-        setServerError(errorData.error || 'An error occurred');
-      }
-    } catch (error) {
-      setServerError('Network error');
+      const errorData = await response.json();
+      setServerError(errorData.error || 'An error occurred');
     }
+  } catch (error) {
+    setServerError('Network error');
+  }
   };
 
   const renderFormFields = () => {
+    <Button onClick={() => navigate(-1)} variant="outlined" sx={{ mb: 2, mt: 2}}>
+                <ArrowBack /> Back
+            </Button>
     if (!entitySchema) return <div>Loading schema...</div>;
 
     return Object.entries(entitySchema.attributes).map(([name, type]) => (
@@ -86,7 +101,7 @@ const DataEntryForm = () => {
                 })}
                 error={!!errors[name]}
                 helperText={errors[name] && `Invalid ${type}`}
-                type={getInputType(type) === 'boolean' ? 'text' : getInputType(type)} // Disable checkbox functionality for now
+                type={getInputType(type) === 'date' ? 'date' : getInputType(type)} // Disable checkbox functionality for now
                 // Handle checkbox state here if needed
             />
         </Box>
@@ -97,7 +112,7 @@ const DataEntryForm = () => {
     switch (type) {
       case 'string': return typeof value === 'string';
       case 'number': return !isNaN(parseFloat(value)) && isFinite(value);
-      case 'boolean': return typeof value === 'boolean';
+      case 'date': return !isNaN(Date.parse(value));
       default: return false;
     }
   };
@@ -107,8 +122,8 @@ const DataEntryForm = () => {
       case 'string':
       case 'number':
         return type;
-      case 'boolean':
-        return 'checkbox';
+      case 'date':
+        return 'date';
       default:
         return 'text';
     }
@@ -119,6 +134,7 @@ const DataEntryForm = () => {
     }
     return (
         <Box mb={3}>
+        
         <Typography variant="h6" gutterBottom>Existing Entries:</Typography>
         <TableContainer component={Paper}>
             <Table>
